@@ -8,6 +8,7 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from flask import Flask, request, jsonify
 import logging
 import sys
+
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║  CREATOR: TARIKUL ISLAM
 # ║  TELEGRAN: https://t.me/paglu_dev
@@ -22,7 +23,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # === CONFIG ===
-BOT_TOKEN = os.getenv("8619933967:AAFfsfEIdt6WpJzsw5LK06UtGBgEGDwLrFs")
+# CORRECCIÓN: Se asigna el token directamente o como valor de respaldo de la variable de entorno.
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8619933967:AAFfsfEIdt6WpJzsw5LK06UtGBgEGDwLrFs")
 
 if not BOT_TOKEN:
     logger.error("❌ BOT_TOKEN not found! Please set your bot token in environment variables.")
@@ -31,7 +33,7 @@ if not BOT_TOKEN:
 REQUIRED_CHANNELS = ["@liketutorial001"]
 GROUP_JOIN_LINK = "https://t.me/Socios66"
 OWNER_ID = 7710633235
-OWNER_USERNAME = "@@Master"
+OWNER_USERNAME = "@Master" # CORRECCIÓN: Se eliminó el doble @@
 
 bot = telebot.TeleBot(BOT_TOKEN)
 like_tracker = {}   # in-memory cache
@@ -72,7 +74,8 @@ def is_user_in_channel(user_id):
 
 
 def call_api(region, uid):
-    url = f"https://your-api-domain//like?uid={uid}&server_name={region}"
+    # CORRECCIÓN: Se eliminó la doble barra (//like) de la URL
+    url = f"https://your-api-domain/like?uid={uid}&server_name={region}"
     try:
         response = requests.get(url, timeout=20)
         if response.status_code != 200:
