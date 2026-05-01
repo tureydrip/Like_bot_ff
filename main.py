@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # === CONFIG ===
-# CORRECCIÓN: Se busca la variable "BOT_TOKEN", si no existe, usa tu token por defecto.
+# Lee el token de las variables de entorno, o usa el tuyo por defecto
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8619933967:AAFfsfEIdt6WpJzsw5LK06UtGBgEGDwLrFs")
 
 if not BOT_TOKEN:
