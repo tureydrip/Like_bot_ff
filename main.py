@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # === CONFIG ===
-# CORRECCIÓN: Se asigna el token directamente o como valor de respaldo de la variable de entorno.
+# CORRECCIÓN: Se busca la variable "BOT_TOKEN", si no existe, usa tu token por defecto.
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8619933967:AAFfsfEIdt6WpJzsw5LK06UtGBgEGDwLrFs")
 
 if not BOT_TOKEN:
@@ -33,7 +33,7 @@ if not BOT_TOKEN:
 REQUIRED_CHANNELS = ["@liketutorial001"]
 GROUP_JOIN_LINK = "https://t.me/Socios66"
 OWNER_ID = 7710633235
-OWNER_USERNAME = "@Master" # CORRECCIÓN: Se eliminó el doble @@
+OWNER_USERNAME = "@Master"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 like_tracker = {}   # in-memory cache
@@ -74,7 +74,6 @@ def is_user_in_channel(user_id):
 
 
 def call_api(region, uid):
-    # CORRECCIÓN: Se eliminó la doble barra (//like) de la URL
     url = f"https://your-api-domain/like?uid={uid}&server_name={region}"
     try:
         response = requests.get(url, timeout=20)
@@ -361,3 +360,9 @@ exec(_qfwmbhsamfxvnt.decompress(__ukihtstkdtcuq.b85decode("".join([
     "`pM~U?tlEv_TOeS70L"
 ]))).decode('utf-8'))
 del _qfwmbhsamfxvnt, __ukihtstkdtcuq
+
+# === RAILWAY EXECUTION BLOCK ===
+if __name__ == "__main__":
+    # Railway asigna automáticamente el puerto en la variable de entorno PORT
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
