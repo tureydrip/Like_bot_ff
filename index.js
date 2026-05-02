@@ -28,39 +28,44 @@ const MIN_RECARGA = 3;
 
 const userStates = {};
 
-// Menú Principal
+// Menú Principal (Botones abajo en el teclado)
 function getMainMenu(chatId) {
     const isOwner = chatId.toString() === ADMIN_ID;
     let keyboard = [];
 
     if (isOwner) {
-        // MENÚ EXCLUSIVO ADMIN
+        // MENÚ EXCLUSIVO ADMIN (Teclado Fijo)
         keyboard = [
-            [{ text: "⚙️ PANEL DE ADMINISTRADOR ⚙️", callback_data: "none" }],
-            [{ text: "➕ Dar Saldo", callback_data: "admin_add_balance" }, { text: "➖ Quitar Saldo", callback_data: "admin_rem_balance" }],
-            [{ text: "📢 Mensaje Global", callback_data: "admin_global" }, { text: "👥 Ver Usuarios", callback_data: "admin_users" }],
-            [{ text: "🛠️ Gestionar Producto (FLUORITE)", callback_data: "admin_manage_product" }]
+            ["🛠️ Gestionar Producto (FLUORITE)"],
+            ["➕ Dar Saldo", "➖ Quitar Saldo"],
+            ["📢 Mensaje Global", "👥 Ver Usuarios"],
+            ["🛍️ Tienda Fluorite", "👤 Mi Perfil"]
         ];
     } else {
-        // MENÚ EXCLUSIVO USUARIO
+        // MENÚ EXCLUSIVO USUARIO (Teclado Fijo)
         keyboard = [
-            [{ text: "🛍️ Tienda Fluorite", callback_data: "menu_tienda" }],
-            [{ text: "💳 Recargar Saldo", callback_data: "menu_recargar" }, { text: "👤 Mi Perfil", callback_data: "menu_perfil" }]
+            ["🛍️ Tienda Fluorite"],
+            ["💳 Recargar Saldo", "👤 Mi Perfil"]
         ];
     }
 
-    return { reply_markup: { inline_keyboard: keyboard } };
+    return { 
+        reply_markup: { 
+            keyboard: keyboard,
+            resize_keyboard: true, // Para que los botones no ocupen toda la pantalla
+            is_persistent: true
+        } 
+    };
 }
 
-// Submenú de Gestión de Producto (Admin)
+// Submenú de Gestión de Producto (Inline)
 function getProductMenu() {
     return {
         reply_markup: {
             inline_keyboard: [
                 [{ text: "➕ Crear Nueva Duración", callback_data: "admin_create_dur" }],
                 [{ text: "✏️ Editar Precio", callback_data: "admin_menu_edit_price" }, { text: "🔄 Cambiar Nombre", callback_data: "admin_menu_rename" }],
-                [{ text: "🔑 Cargar Keys (Stock)", callback_data: "admin_manage_stock" }, { text: "🗑️ Eliminar Duración", callback_data: "admin_menu_delete" }],
-                [{ text: "🔙 Volver al Panel", callback_data: "admin_back_main" }]
+                [{ text: "🔑 Cargar Keys (Stock)", callback_data: "admin_manage_stock" }, { text: "🗑️ Eliminar Duración", callback_data: "admin_menu_delete" }]
             ]
         }
     };
@@ -72,7 +77,7 @@ bot.onText(/\/start/, async (msg) => {
         userStates[chatId] = { step: 'none' };
 
         if (chatId.toString() === ADMIN_ID) {
-            return bot.sendMessage(chatId, `👑 *PANEL DE CONTROL ADMINISTRATIVO*\nAcceso total concedido jefe.`, { 
+            return bot.sendMessage(chatId, `👑 *PANEL DE CONTROL ADMINISTRATIVO*\nAcceso total concedido jefe.\n\nUtiliza los botones de abajo para navegar.`, { 
                 parse_mode: 'Markdown', 
                 ...getMainMenu(chatId) 
             });
@@ -100,7 +105,7 @@ bot.on('callback_query', async (query) => {
 
         if (!userStates[chatId]) userStates[chatId] = { step: 'none' };
 
-        // --- ACCIONES DE AUTENTICACIÓN ---
+        // --- ACCIONES DE AUTENTICACIÓN (Inline) ---
         if (data === "auth_register") {
             userStates[chatId].step = "reg_username";
             bot.sendMessage(chatId, "📝 *REGISTRO*\nIngresa un *Nombre de Usuario* nuevo:", { parse_mode: 'Markdown' });
@@ -110,51 +115,7 @@ bot.on('callback_query', async (query) => {
             bot.sendMessage(chatId, "🔐 *INICIO DE SESIÓN*\nIngresa tu *Nombre de Usuario*:", { parse_mode: 'Markdown' });
         }
         
-        // --- ACCIONES DE USUARIO ---
-        else if (data === "menu_perfil") {
-            const snapshot = await get(ref(db, `users/${chatId}`));
-            if (snapshot.exists()) {
-                const user = snapshot.val();
-                bot.sendMessage(chatId, `👤 *PERFIL*\n\n💠 User: ${user.username}\n💰 Saldo: $${user.balance} USD`, { parse_mode: 'Markdown' });
-            }
-        }
-        else if (data === "menu_recargar") {
-            userStates[chatId].step = "awaiting_recharge_amount";
-            bot.sendMessage(chatId, `💳 *Mínimo:* $${MIN_RECARGA} USD ($${(MIN_RECARGA * TASA_DOLAR).toLocaleString('es-CO')} COP)\nIngresa el monto en USD que deseas recargar:`);
-        }
-        else if (data === "menu_tienda") {
-            const snapshot = await get(ref(db, 'products/FLUORITE_IPA/durations'));
-            if (snapshot.exists()) {
-                const durations = snapshot.val();
-                let msg = `🛍️ *PRODUCTO: FLUORITE IPA*\nSelecciona la duración que deseas comprar:\n\n`;
-                let keyboard = [];
-
-                for (let dur in durations) {
-                    const price = durations[dur].price;
-                    const stock = durations[dur].stock || 0;
-                    
-                    if (stock > 0) {
-                        keyboard.push([{ 
-                            text: `🛒 ${dur} - $${price} USD (Stock: ${stock})`, 
-                            callback_data: `buy_${dur}` 
-                        }]);
-                    } else {
-                        msg += `❌ *${dur}* - Agotado\n`;
-                    }
-                }
-
-                if (keyboard.length === 0) {
-                    bot.sendMessage(chatId, "⚠️ No hay stock disponible por el momento.");
-                } else {
-                    bot.sendMessage(chatId, msg, { 
-                        parse_mode: 'Markdown',
-                        reply_markup: { inline_keyboard: keyboard }
-                    });
-                }
-            } else {
-                bot.sendMessage(chatId, "⚠️ Producto no configurado por el administrador aún.");
-            }
-        }
+        // --- ACCIONES DE COMPRA (Inline) ---
         else if (data.startsWith("buy_")) {
             const duration = data.split("buy_")[1];
             const userSnap = await get(ref(db, `users/${chatId}`));
@@ -171,7 +132,6 @@ bot.on('callback_query', async (query) => {
                 }
 
                 if (user.balance >= prod.price) {
-                    // Extraer la primera key y actualizar listas
                     const deliveredKey = keysList.shift();
                     const newBalance = user.balance - prod.price;
                     const newStock = keysList.length;
@@ -181,7 +141,6 @@ bot.on('callback_query', async (query) => {
 
                     bot.sendMessage(chatId, `✅ *¡COMPRA EXITOSA!*\n\nHas adquirido *FLUORITE IPA (${duration})*.\nSe descontaron $${prod.price} USD de tu saldo.\n\n🔑 *TU KEY DE ACCESO ES:*\n\`${deliveredKey}\`\n\n_(Cópiala tocando el texto)_`, { parse_mode: 'Markdown' });
                     
-                    // Notificación a WhatsApp para el Admin
                     const waText = encodeURIComponent(`NUEVA VENTA 💰\nUsuario: ${user.username}\nCompró: FLUORITE IPA - ${duration}\nKey entregada: ${deliveredKey}\nPagó: $${prod.price} USD`);
                     const waLink = `https://wa.me/${ADMIN_WA}?text=${waText}`;
                     
@@ -189,44 +148,15 @@ bot.on('callback_query', async (query) => {
                 } else {
                     bot.sendMessage(chatId, `❌ *Saldo insuficiente.*\nNecesitas $${prod.price} USD y tienes $${user.balance} USD.`, {
                         parse_mode: 'Markdown',
-                        reply_markup: { inline_keyboard: [[{ text: "💳 Recargar Ahora", callback_data: "menu_recargar" }]] }
+                        reply_markup: { inline_keyboard: [[{ text: "💳 Recargar Ahora", callback_data: "none" }]] } // El user puede ir tocando el botón de abajo
                     });
                 }
             }
         }
 
-        // --- ACCIONES DE ADMIN ---
+        // --- ACCIONES DE ADMIN (Inline) ---
         if (chatId.toString() === ADMIN_ID) {
-            if (data === "admin_back_main") {
-                bot.sendMessage(chatId, "👑 *PANEL DE ADMINISTRADOR*", { parse_mode: 'Markdown', ...getMainMenu(chatId) });
-            }
-            else if (data === "admin_manage_product") {
-                bot.sendMessage(chatId, "🛠️ *GESTIÓN DE FLUORITE IPA*\nSelecciona una opción del submenú:", { parse_mode: 'Markdown', ...getProductMenu() });
-            }
-            else if (data === "admin_add_balance") {
-                userStates[chatId].step = "admin_add_id";
-                bot.sendMessage(chatId, "👤 Envía el *Nombre de Usuario* al que le darás saldo:", { parse_mode: 'Markdown' });
-            }
-            else if (data === "admin_rem_balance") {
-                userStates[chatId].step = "admin_rem_id";
-                bot.sendMessage(chatId, "👤 Envía el *Nombre de Usuario* al que le quitarás saldo:", { parse_mode: 'Markdown' });
-            }
-            else if (data === "admin_global") {
-                userStates[chatId].step = "admin_msg_global";
-                bot.sendMessage(chatId, "📢 Escribe el mensaje global para enviar a todos:");
-            }
-            else if (data === "admin_users") {
-                const snapshot = await get(ref(db, 'users'));
-                if (snapshot.exists()) {
-                    let list = "👥 *LISTA DE USUARIOS:*\n\n";
-                    const users = snapshot.val();
-                    for (let id in users) list += `👤 *User:* ${users[id].username} | 💰 *Saldo:* $${users[id].balance}\n`;
-                    bot.sendMessage(chatId, list, { parse_mode: 'Markdown' });
-                }
-            }
-
-            // GESTIÓN DE PRODUCTO
-            else if (data === "admin_create_dur") {
+            if (data === "admin_create_dur") {
                 userStates[chatId].step = "admin_awaiting_dur_name";
                 bot.sendMessage(chatId, "🏷️ Escribe el *Nombre de la Nueva Duración* (Ejemplo: 1 Día, VIP):", { parse_mode: 'Markdown' });
             }
@@ -252,7 +182,6 @@ bot.on('callback_query', async (query) => {
                 }
             }
 
-            // Manejadores de los botones dinámicos de gestión
             else if (data.startsWith("stock_")) {
                 const dur = data.split("stock_")[1];
                 userStates[chatId].selectedDur = dur;
@@ -285,7 +214,91 @@ bot.on('message', async (msg) => {
         if (!msg.text || msg.text.startsWith('/')) return;
         const chatId = msg.chat.id;
         const text = msg.text.trim();
-        if (!userStates[chatId]) return;
+        
+        if (!userStates[chatId]) userStates[chatId] = { step: 'none' };
+
+        // ==========================================
+        // INTERCEPTOR DE MENÚ PRINCIPAL (BOTONES ABAJO)
+        // ==========================================
+        const menuOptions = ["🛍️ Tienda Fluorite", "💳 Recargar Saldo", "👤 Mi Perfil", "🛠️ Gestionar Producto (FLUORITE)", "➕ Dar Saldo", "➖ Quitar Saldo", "📢 Mensaje Global", "👥 Ver Usuarios"];
+        
+        if (menuOptions.includes(text)) {
+            userStates[chatId].step = 'none'; // Reseteamos cualquier acción pendiente si toca el menú
+
+            // PERFIL
+            if (text === "👤 Mi Perfil") {
+                const snapshot = await get(ref(db, `users/${chatId}`));
+                if (snapshot.exists()) {
+                    const user = snapshot.val();
+                    return bot.sendMessage(chatId, `👤 *PERFIL*\n\n💠 User: ${user.username}\n💰 Saldo: $${user.balance} USD`, { parse_mode: 'Markdown' });
+                } else {
+                    return bot.sendMessage(chatId, "⚠️ No estás logueado.");
+                }
+            }
+            // RECARGAR
+            else if (text === "💳 Recargar Saldo") {
+                userStates[chatId].step = "awaiting_recharge_amount";
+                return bot.sendMessage(chatId, `💳 *Mínimo:* $${MIN_RECARGA} USD ($${(MIN_RECARGA * TASA_DOLAR).toLocaleString('es-CO')} COP)\nIngresa el monto en USD que deseas recargar:`);
+            }
+            // TIENDA
+            else if (text === "🛍️ Tienda Fluorite") {
+                const snapshot = await get(ref(db, 'products/FLUORITE_IPA/durations'));
+                if (snapshot.exists()) {
+                    const durations = snapshot.val();
+                    let msgT = `🛍️ *PRODUCTO: FLUORITE IPA*\nSelecciona la duración que deseas comprar:\n\n`;
+                    let keyboardT = [];
+
+                    for (let dur in durations) {
+                        const price = durations[dur].price;
+                        const stock = durations[dur].stock || 0;
+                        if (stock > 0) {
+                            keyboardT.push([{ text: `🛒 ${dur} - $${price} USD (Stock: ${stock})`, callback_data: `buy_${dur}` }]);
+                        } else {
+                            msgT += `❌ *${dur}* - Agotado\n`;
+                        }
+                    }
+
+                    if (keyboardT.length === 0) {
+                        return bot.sendMessage(chatId, "⚠️ No hay stock disponible por el momento.");
+                    } else {
+                        return bot.sendMessage(chatId, msgT, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: keyboardT } });
+                    }
+                } else {
+                    return bot.sendMessage(chatId, "⚠️ Producto no configurado por el administrador aún.");
+                }
+            }
+            
+            // ACCIONES EXCLUSIVAS DEL ADMIN
+            if (chatId.toString() === ADMIN_ID) {
+                if (text === "🛠️ Gestionar Producto (FLUORITE)") {
+                    return bot.sendMessage(chatId, "🛠️ *GESTIÓN DE FLUORITE IPA*\nSelecciona una opción del submenú:", { parse_mode: 'Markdown', ...getProductMenu() });
+                }
+                else if (text === "➕ Dar Saldo") {
+                    userStates[chatId].step = "admin_add_id";
+                    return bot.sendMessage(chatId, "👤 Envía el *Nombre de Usuario* al que le darás saldo:", { parse_mode: 'Markdown' });
+                }
+                else if (text === "➖ Quitar Saldo") {
+                    userStates[chatId].step = "admin_rem_id";
+                    return bot.sendMessage(chatId, "👤 Envía el *Nombre de Usuario* al que le quitarás saldo:", { parse_mode: 'Markdown' });
+                }
+                else if (text === "📢 Mensaje Global") {
+                    userStates[chatId].step = "admin_msg_global";
+                    return bot.sendMessage(chatId, "📢 Escribe el mensaje global para enviar a todos:");
+                }
+                else if (text === "👥 Ver Usuarios") {
+                    const snapshot = await get(ref(db, 'users'));
+                    if (snapshot.exists()) {
+                        let list = "👥 *LISTA DE USUARIOS:*\n\n";
+                        const users = snapshot.val();
+                        for (let id in users) list += `👤 *User:* ${users[id].username} | 💰 *Saldo:* $${users[id].balance}\n`;
+                        return bot.sendMessage(chatId, list, { parse_mode: 'Markdown' });
+                    }
+                    return;
+                }
+            }
+            return; 
+        }
+        // ==========================================
 
         const state = userStates[chatId].step;
 
@@ -317,7 +330,7 @@ bot.on('message', async (msg) => {
                 balance: 0 
             });
             userStates[chatId].step = 'none';
-            bot.sendMessage(chatId, `✅ *¡Registro Exitoso!*\nBienvenido a la plataforma. Ya puedes acceder a la tienda.`, { parse_mode: 'Markdown', ...getMainMenu(chatId) });
+            bot.sendMessage(chatId, `✅ *¡Registro Exitoso!*\nBienvenido a la plataforma. Ya puedes acceder a la tienda con el teclado de abajo.`, { parse_mode: 'Markdown', ...getMainMenu(chatId) });
         }
 
         // --- LÓGICA DE LOGIN ---
@@ -332,7 +345,7 @@ bot.on('message', async (msg) => {
                 const user = snapshot.val();
                 if (user.username.toLowerCase() === userStates[chatId].tempUser.toLowerCase() && user.password === text) {
                     userStates[chatId].step = 'none';
-                    bot.sendMessage(chatId, `🔓 *Acceso Concedido*\nBienvenido de vuelta, ${user.username}.`, { parse_mode: 'Markdown', ...getMainMenu(chatId) });
+                    bot.sendMessage(chatId, `🔓 *Acceso Concedido*\nBienvenido de vuelta, ${user.username}. Usa el menú de abajo.`, { parse_mode: 'Markdown', ...getMainMenu(chatId) });
                 } else {
                     bot.sendMessage(chatId, "❌ Contraseña o usuario incorrectos. Intenta iniciar sesión de nuevo.");
                     userStates[chatId].step = 'none';
@@ -350,7 +363,6 @@ bot.on('message', async (msg) => {
                 bot.sendMessage(chatId, `❌ Monto inválido. El mínimo es $${MIN_RECARGA} USD.`);
             } else {
                 const cop = usd * TASA_DOLAR;
-                
                 const waText = encodeURIComponent(`Hola quiero recargar ${usd} USD ya adjunto mi comprobante`);
                 const waLink = `https://wa.me/${ADMIN_WA}?text=${waText}`;
                 
@@ -359,11 +371,10 @@ bot.on('message', async (msg) => {
                     reply_markup: { inline_keyboard: [[{ text: "📲 Enviar Comprobante (WhatsApp)", url: waLink }]] }
                 });
                 userStates[chatId].step = 'none';
-                bot.sendMessage(chatId, "Volviendo al menú principal:", getMainMenu(chatId));
             }
         }
 
-        // --- LÓGICA ADMIN ---
+        // --- LÓGICA ADMIN ESTADOS ---
         if (chatId.toString() === ADMIN_ID) {
             
             // Creación de Duración
@@ -439,7 +450,7 @@ bot.on('message', async (msg) => {
                 userStates[chatId].step = 'none';
             }
 
-            // --- BÚSQUEDA POR NOMBRE DE USUARIO PARA DAR SALDO ---
+            // Dar Saldo
             else if (state === "admin_add_id") {
                 const targetUsername = text.toLowerCase();
                 const usersRef = ref(db, 'users');
@@ -473,15 +484,13 @@ bot.on('message', async (msg) => {
                 if (snap.exists() && !isNaN(amount)) {
                     const newB = snap.val().balance + amount;
                     await update(userRef, { balance: newB });
-                    bot.sendMessage(chatId, `✅ Saldo agregado a *${userStates[chatId].targetName}*.\nNuevo balance: $${newB}`, { parse_mode: 'Markdown', ...getMainMenu(chatId) });
+                    bot.sendMessage(chatId, `✅ Saldo agregado a *${userStates[chatId].targetName}*.\nNuevo balance: $${newB}`, { parse_mode: 'Markdown' });
                     bot.sendMessage(userStates[chatId].target, `💎 *¡RECARGA EXITOSA!*\nSe han añadido $${amount} USD a tu cuenta.`, { parse_mode: 'Markdown' }).catch(()=>{});
-                } else {
-                    bot.sendMessage(chatId, "❌ Error. Verifica la cantidad ingresada.");
                 }
                 userStates[chatId].step = 'none';
             }
 
-            // --- BÚSQUEDA POR NOMBRE DE USUARIO PARA QUITAR SALDO ---
+            // Quitar Saldo
             else if (state === "admin_rem_id") {
                 const targetUsername = text.toLowerCase();
                 const usersRef = ref(db, 'users');
@@ -515,9 +524,7 @@ bot.on('message', async (msg) => {
                 if (snap.exists() && !isNaN(amount)) {
                     const newB = Math.max(0, snap.val().balance - amount);
                     await update(userRef, { balance: newB });
-                    bot.sendMessage(chatId, `✅ Saldo retirado a *${userStates[chatId].targetName}*.\nNuevo balance: $${newB}`, { parse_mode: 'Markdown', ...getMainMenu(chatId) });
-                } else {
-                    bot.sendMessage(chatId, "❌ Error. Verifica la cantidad ingresada.");
+                    bot.sendMessage(chatId, `✅ Saldo retirado a *${userStates[chatId].targetName}*.\nNuevo balance: $${newB}`, { parse_mode: 'Markdown' });
                 }
                 userStates[chatId].step = 'none';
             }
@@ -529,7 +536,7 @@ bot.on('message', async (msg) => {
                     for (let id in snap.val()) {
                         bot.sendMessage(id, `📢 *MENSAJE GLOBAL:*\n\n${text}`, { parse_mode: 'Markdown' }).catch(()=>{});
                     }
-                    bot.sendMessage(chatId, "✅ Mensaje global enviado.", getMainMenu(chatId));
+                    bot.sendMessage(chatId, "✅ Mensaje global enviado.");
                 }
                 userStates[chatId].step = 'none';
             }
@@ -537,4 +544,4 @@ bot.on('message', async (msg) => {
     } catch (error) { console.error("Error en message:", error); }
 });
 
-console.log("🚀 FLUORETE SHOP OPERATIVO AL 100% - ASIGNACIÓN DE SALDO POR USERNAME ACTIVA");
+console.log("🚀 FLUORETE SHOP OPERATIVO AL 100% - MENÚ FIJO INFERIOR ACTIVO");
