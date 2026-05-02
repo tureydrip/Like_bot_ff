@@ -1,0 +1,14 @@
+{
+  "name": "fluorete-shop-bot",
+  "version": "1.0.0",
+  "description": "Bot de tienda automatizada en Telegram",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "firebase": "^10.11.0",
+    "node-telegram-bot-api": "^0.65.0",
+    "dotenv": "^16.4.5"
+  }
+}
