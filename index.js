@@ -115,7 +115,7 @@ bot.on('callback_query', async (query) => {
             const snapshot = await get(ref(db, `users/${chatId}`));
             if (snapshot.exists()) {
                 const user = snapshot.val();
-                bot.sendMessage(chatId, `👤 *PERFIL*\n\n💠 User: ${user.username}\n💰 Saldo: $${user.balance} USD\n🆔 ID: \`${chatId}\``, { parse_mode: 'Markdown' });
+                bot.sendMessage(chatId, `👤 *PERFIL*\n\n💠 User: ${user.username}\n💰 Saldo: $${user.balance} USD`, { parse_mode: 'Markdown' });
             }
         }
         else if (data === "menu_recargar") {
@@ -180,7 +180,12 @@ bot.on('callback_query', async (query) => {
                     await update(ref(db, `products/FLUORITE_IPA/durations/${duration}`), { keys: keysList, stock: newStock });
 
                     bot.sendMessage(chatId, `✅ *¡COMPRA EXITOSA!*\n\nHas adquirido *FLUORITE IPA (${duration})*.\nSe descontaron $${prod.price} USD de tu saldo.\n\n🔑 *TU KEY DE ACCESO ES:*\n\`${deliveredKey}\`\n\n_(Cópiala tocando el texto)_`, { parse_mode: 'Markdown' });
-                    bot.sendMessage(ADMIN_ID, `💰 *NUEVA VENTA*\n👤 Usuario: ${user.username} (${chatId})\n🛒 Compró: FLUORITE IPA - ${duration}\n🔑 Key entregada: \`${deliveredKey}\`\n💵 Pagó: $${prod.price} USD`, { parse_mode: 'Markdown' }).catch(()=>{});
+                    
+                    // Notificación a WhatsApp para el Admin
+                    const waText = encodeURIComponent(`NUEVA VENTA 💰\nUsuario: ${user.username}\nCompró: FLUORITE IPA - ${duration}\nKey entregada: ${deliveredKey}\nPagó: $${prod.price} USD`);
+                    const waLink = `https://wa.me/${ADMIN_WA}?text=${waText}`;
+                    
+                    bot.sendMessage(ADMIN_ID, `💰 *NUEVA VENTA REGISTRADA*\n\nUsuario: ${user.username}\nCompró: FLUORITE IPA - ${duration}\nKey entregada: \`${deliveredKey}\`\nPagó: $${prod.price} USD\n\n[📲 Enviar reporte a mi WhatsApp](${waLink})`, { parse_mode: 'Markdown' }).catch(()=>{});
                 } else {
                     bot.sendMessage(chatId, `❌ *Saldo insuficiente.*\nNecesitas $${prod.price} USD y tienes $${user.balance} USD.`, {
                         parse_mode: 'Markdown',
@@ -200,11 +205,11 @@ bot.on('callback_query', async (query) => {
             }
             else if (data === "admin_add_balance") {
                 userStates[chatId].step = "admin_add_id";
-                bot.sendMessage(chatId, "🆔 Envía el ID del usuario al que le darás saldo:");
+                bot.sendMessage(chatId, "👤 Envía el *Nombre de Usuario* al que le darás saldo:", { parse_mode: 'Markdown' });
             }
             else if (data === "admin_rem_balance") {
                 userStates[chatId].step = "admin_rem_id";
-                bot.sendMessage(chatId, "🆔 Envía el ID del usuario al que le quitarás saldo:");
+                bot.sendMessage(chatId, "👤 Envía el *Nombre de Usuario* al que le quitarás saldo:", { parse_mode: 'Markdown' });
             }
             else if (data === "admin_global") {
                 userStates[chatId].step = "admin_msg_global";
@@ -215,12 +220,12 @@ bot.on('callback_query', async (query) => {
                 if (snapshot.exists()) {
                     let list = "👥 *LISTA DE USUARIOS:*\n\n";
                     const users = snapshot.val();
-                    for (let id in users) list += `\`${id}\` - ${users[id].username} ($${users[id].balance})\n`;
+                    for (let id in users) list += `👤 *User:* ${users[id].username} | 💰 *Saldo:* $${users[id].balance}\n`;
                     bot.sendMessage(chatId, list, { parse_mode: 'Markdown' });
                 }
             }
 
-            // GESTIÓN DE PRODUCTO (NUEVAS OPCIONES)
+            // GESTIÓN DE PRODUCTO
             else if (data === "admin_create_dur") {
                 userStates[chatId].step = "admin_awaiting_dur_name";
                 bot.sendMessage(chatId, "🏷️ Escribe el *Nombre de la Nueva Duración* (Ejemplo: 1 Día, VIP):", { parse_mode: 'Markdown' });
@@ -243,7 +248,7 @@ bot.on('callback_query', async (query) => {
                     }
                     bot.sendMessage(chatId, textMsg, { reply_markup: { inline_keyboard: keyboard } });
                 } else {
-                    bot.sendMessage(chatId, "⚠️ No hay duraciones creadas. Crea una primero.");
+                    bot.sendMessage(chatId, "⚠️ No hay duraciones creadas. Toca '➕ Crear Nueva Duración' primero.");
                 }
             }
 
@@ -345,11 +350,13 @@ bot.on('message', async (msg) => {
                 bot.sendMessage(chatId, `❌ Monto inválido. El mínimo es $${MIN_RECARGA} USD.`);
             } else {
                 const cop = usd * TASA_DOLAR;
-                const link = `https://wa.me/${ADMIN_WA}?text=Hola%20quiero%20recargar%20${usd}%20USD%20ya%20adjunto%20mi%20comprobante`;
+                
+                const waText = encodeURIComponent(`Hola quiero recargar ${usd} USD ya adjunto mi comprobante`);
+                const waLink = `https://wa.me/${ADMIN_WA}?text=${waText}`;
                 
                 bot.sendMessage(chatId, `📄 *FACTURA DE COMPRA*\n\n💵 Monto: $${usd} USD\n💰 Total: $${cop.toLocaleString('es-CO')} COP\n\n🏦 *Nequi:* \`${NEQUI_NUM}\`\n\n⚠️ Toca el botón de abajo para enviar el comprobante directamente al administrador por WhatsApp.`, {
                     parse_mode: 'Markdown',
-                    reply_markup: { inline_keyboard: [[{ text: "📲 Enviar Comprobante (WhatsApp)", url: link }]] }
+                    reply_markup: { inline_keyboard: [[{ text: "📲 Enviar Comprobante (WhatsApp)", url: waLink }]] }
                 });
                 userStates[chatId].step = 'none';
                 bot.sendMessage(chatId, "Volviendo al menú principal:", getMainMenu(chatId));
@@ -371,7 +378,7 @@ bot.on('message', async (msg) => {
                     const durName = userStates[chatId].tempDurName;
                     await set(ref(db, 'products/FLUORITE_IPA/name'), "FLUORITE IPA");
                     await update(ref(db, `products/FLUORITE_IPA/durations/${durName}`), { price: price, stock: 0, keys: [] });
-                    bot.sendMessage(chatId, `✅ *Duración Creada*\nNombre: ${durName}\nPrecio: $${price} USD\nStock inicial: 0`, { parse_mode: 'Markdown', ...getProductMenu() });
+                    bot.sendMessage(chatId, `✅ *Duración Creada Exitosamente*\n\nNombre: ${durName}\nPrecio: $${price} USD\nStock inicial: 0\n\n_(Usa el botón de '🔑 Cargar Keys' para añadirle stock)._`, { parse_mode: 'Markdown', ...getProductMenu() });
                 } else {
                     bot.sendMessage(chatId, "❌ El precio debe ser un número válido.");
                 }
@@ -407,11 +414,9 @@ bot.on('message', async (msg) => {
                 userStates[chatId].step = 'none';
             }
 
-            // Setear Stock (AHORA LEYENDO KEYS)
+            // Setear Stock (LEYENDO KEYS)
             else if (state === "admin_set_stock") {
                 const dur = userStates[chatId].selectedDur;
-                
-                // Dividir el texto ingresado por saltos de línea y limpiar espacios
                 const newKeys = text.split('\n').map(k => k.trim()).filter(k => k.length > 0);
                 
                 if (newKeys.length > 0) {
@@ -423,7 +428,6 @@ bot.on('message', async (msg) => {
                         currentKeys = snap.val().keys;
                     }
                     
-                    // Unir las keys viejas con las nuevas
                     const updatedKeys = currentKeys.concat(newKeys);
                     const newStock = updatedKeys.length;
                     
@@ -435,11 +439,32 @@ bot.on('message', async (msg) => {
                 userStates[chatId].step = 'none';
             }
 
-            // Saldo y Globales
+            // --- BÚSQUEDA POR NOMBRE DE USUARIO PARA DAR SALDO ---
             else if (state === "admin_add_id") {
-                userStates[chatId].target = text;
-                userStates[chatId].step = "admin_add_amount";
-                bot.sendMessage(chatId, "💰 Cantidad de USD a agregar:");
+                const targetUsername = text.toLowerCase();
+                const usersRef = ref(db, 'users');
+                const snap = await get(usersRef);
+                let foundId = null;
+
+                if (snap.exists()) {
+                    const users = snap.val();
+                    for (let id in users) {
+                        if (users[id].username.toLowerCase() === targetUsername) {
+                            foundId = id;
+                            break;
+                        }
+                    }
+                }
+
+                if (foundId) {
+                    userStates[chatId].target = foundId;
+                    userStates[chatId].targetName = text;
+                    userStates[chatId].step = "admin_add_amount";
+                    bot.sendMessage(chatId, `💰 Seleccionaste al usuario *${text}*.\nIngresa la cantidad de USD a agregar:`, { parse_mode: 'Markdown' });
+                } else {
+                    bot.sendMessage(chatId, `❌ Usuario *${text}* no encontrado. Verifica que esté bien escrito.`, { parse_mode: 'Markdown' });
+                    userStates[chatId].step = 'none';
+                }
             }
             else if (state === "admin_add_amount") {
                 const amount = parseFloat(text);
@@ -448,15 +473,40 @@ bot.on('message', async (msg) => {
                 if (snap.exists() && !isNaN(amount)) {
                     const newB = snap.val().balance + amount;
                     await update(userRef, { balance: newB });
-                    bot.sendMessage(chatId, `✅ Saldo actualizado. Nuevo balance: $${newB}`, getMainMenu(chatId));
+                    bot.sendMessage(chatId, `✅ Saldo agregado a *${userStates[chatId].targetName}*.\nNuevo balance: $${newB}`, { parse_mode: 'Markdown', ...getMainMenu(chatId) });
                     bot.sendMessage(userStates[chatId].target, `💎 *¡RECARGA EXITOSA!*\nSe han añadido $${amount} USD a tu cuenta.`, { parse_mode: 'Markdown' }).catch(()=>{});
+                } else {
+                    bot.sendMessage(chatId, "❌ Error. Verifica la cantidad ingresada.");
                 }
                 userStates[chatId].step = 'none';
             }
+
+            // --- BÚSQUEDA POR NOMBRE DE USUARIO PARA QUITAR SALDO ---
             else if (state === "admin_rem_id") {
-                userStates[chatId].target = text;
-                userStates[chatId].step = "admin_rem_amount";
-                bot.sendMessage(chatId, "💰 Cantidad de USD a quitar:");
+                const targetUsername = text.toLowerCase();
+                const usersRef = ref(db, 'users');
+                const snap = await get(usersRef);
+                let foundId = null;
+
+                if (snap.exists()) {
+                    const users = snap.val();
+                    for (let id in users) {
+                        if (users[id].username.toLowerCase() === targetUsername) {
+                            foundId = id;
+                            break;
+                        }
+                    }
+                }
+
+                if (foundId) {
+                    userStates[chatId].target = foundId;
+                    userStates[chatId].targetName = text;
+                    userStates[chatId].step = "admin_rem_amount";
+                    bot.sendMessage(chatId, `💰 Seleccionaste al usuario *${text}*.\nIngresa la cantidad de USD a quitar:`, { parse_mode: 'Markdown' });
+                } else {
+                    bot.sendMessage(chatId, `❌ Usuario *${text}* no encontrado. Verifica que esté bien escrito.`, { parse_mode: 'Markdown' });
+                    userStates[chatId].step = 'none';
+                }
             }
             else if (state === "admin_rem_amount") {
                 const amount = parseFloat(text);
@@ -465,10 +515,14 @@ bot.on('message', async (msg) => {
                 if (snap.exists() && !isNaN(amount)) {
                     const newB = Math.max(0, snap.val().balance - amount);
                     await update(userRef, { balance: newB });
-                    bot.sendMessage(chatId, `✅ Saldo retirado. Nuevo balance: $${newB}`, getMainMenu(chatId));
+                    bot.sendMessage(chatId, `✅ Saldo retirado a *${userStates[chatId].targetName}*.\nNuevo balance: $${newB}`, { parse_mode: 'Markdown', ...getMainMenu(chatId) });
+                } else {
+                    bot.sendMessage(chatId, "❌ Error. Verifica la cantidad ingresada.");
                 }
                 userStates[chatId].step = 'none';
             }
+
+            // Mensaje Global
             else if (state === "admin_msg_global") {
                 const snap = await get(ref(db, 'users'));
                 if (snap.exists()) {
@@ -483,4 +537,4 @@ bot.on('message', async (msg) => {
     } catch (error) { console.error("Error en message:", error); }
 });
 
-console.log("🚀 FLUORETE SHOP OPERATIVO AL 100% - GESTIÓN DE KEYS AUTOMATIZADA");
+console.log("🚀 FLUORETE SHOP OPERATIVO AL 100% - ASIGNACIÓN DE SALDO POR USERNAME ACTIVA");
