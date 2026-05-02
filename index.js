@@ -18,7 +18,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // Token del bot (Se recomienda ponerlo en variables de entorno en Railway)
-const token = process.env.BOT_TOKEN || '8726893067:AAGC_v_RPSAppL9EdBrumsDR1B5DVyiXwN4'; 
+const token = process.env.BOT_TOKEN || 'TU_TOKEN_DE_TELEGRAM_AQUI'; 
 const bot = new TelegramBot(token, { polling: true });
 
 const ADMIN_ID = 7710633235;
@@ -50,11 +50,24 @@ function getMainMenu(chatId) {
     };
 }
 
-// Comando Start y Mensaje Épico
+// Comando Start - Reconocimiento Automático de Admin
 bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
     userStates[chatId] = { step: 'none' };
 
+    // Verificamos si el que escribe es el dueño (TÚ)
+    if (chatId === ADMIN_ID) {
+        const adminWelcome = `👑 *¡BIENVENIDO JEFE (ADMIN)!* 👑\n\n` +
+                             `Has sido reconocido automáticamente por el sistema.\n` +
+                             `Todos los controles de **FLUORETE SHOP** están activos para ti.`;
+        
+        return bot.sendMessage(chatId, adminWelcome, { 
+            parse_mode: 'Markdown', 
+            ...getMainMenu(chatId) 
+        });
+    }
+
+    // Si no es admin, se muestra el mensaje épico y el registro
     const epicMessage = `🌌 *B I E N V E N I D O  A  F L U O R E T E  S H O P* 🌌\n\n` +
                         `⚡️ El sistema definitivo de adquisición y automatización.\n` +
                         `💎 Adquiere tus productos al instante, sin intermediarios.\n\n` +
@@ -110,7 +123,7 @@ bot.on('callback_query', async (query) => {
         const snapshot = await get(prodsRef);
         if (snapshot.exists()) {
             const products = snapshot.val();
-            let msg = "🛍️ *TIENDA FLUORETE*\nSelecciona un producto (Próximamente botones dinámicos):\n\n";
+            let msg = "🛍️ *TIENDA FLUORETE*\nSelecciona un producto:\n\n";
             for (let id in products) {
                 msg += `🔹 *${products[id].name}*\n`;
                 for (let dur in products[id].durations) {
